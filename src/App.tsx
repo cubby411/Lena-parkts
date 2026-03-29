@@ -6,6 +6,8 @@ import Tutorials from './components/Tutorials'
 function App() {
   const [view, setView] = useState<'home' | 'parallel' | 'reverse' | 'diagonal' | 'tips' | 'simulator' | 'tutorials'>('home')
   const [lang, setLang] = useState<'de' | 'en'>('de')
+  const [tutorialMode, setTutorialMode] = useState<'parallel' | 'reverse' | 'diagonal' | null>(null)
+  const [tutorialStep, setTutorialStep] = useState<number>(0)
 
   const headings = {
     de: { hero: 'Einparken lernen mit Selbstvertrauen', sub: 'Schluss mit dem Umkreisen des Blocks. Meistern Sie Parallel-, Rückwärts- und Schrägparken mit interaktiven Schritt-für-Schritt-Anleitungen.' },
@@ -17,7 +19,7 @@ function App() {
       <header className="app-header">
         <div className="brand">
           <div className="logo">🚗</div>
-          <h1>ParkMaster</h1>
+          <h1>Lena parkts</h1>
         </div>
         <nav className="main-nav">
           <button className={view === 'home' ? 'active' : ''} onClick={() => setView('home')}>{lang === 'de' ? 'Startseite' : 'Home'}</button>
@@ -72,11 +74,15 @@ function App() {
           </section>
         )}
 
-        {view === 'simulator' && <Simulator />}
+        {view === 'simulator' && <Simulator tutorialMode={tutorialMode} tutorialStep={tutorialStep} />}
         {(view === 'tutorials' || view === 'parallel' || view === 'reverse' || view === 'diagonal') && (
           <Tutorials
             mode={view === 'tutorials' ? 'auto' : view}
-            onOpenSimulator={() => setView('simulator')}
+            onOpenSimulator={(mode, step) => {
+              setTutorialMode(mode)
+              setTutorialStep(step)
+              setView('simulator')
+            }}
           />
         )}
 

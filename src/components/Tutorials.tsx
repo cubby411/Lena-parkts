@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 type TutorialMode = 'auto' | 'parallel' | 'reverse' | 'diagonal' | 'home'
 
 type TutorialsProps = {
-  onOpenSimulator: () => void
+  onOpenSimulator: (mode: 'parallel' | 'reverse' | 'diagonal', step: number) => void
   mode?: TutorialMode
 }
 
@@ -24,35 +24,43 @@ const Tutorials: React.FC<TutorialsProps> = ({ onOpenSimulator, mode }) => {
     },
     {
       key: 'parallel',
-      title: 'Parallelparken',
-      description: 'Üben Sie das Parallelparken.',
+      title: 'Seitwärts einparken',
+      description: 'Lerne, wie du mühelos parallel zur Fahrbahn in kleine Lücken kommst.',
       steps: [
-        'Fahren Sie neben dem Parkplatz.',
-        'Setzen Sie zurück und lenken Sie nach rechts.',
-        'Fahren Sie vorwärts und lenken Sie nach links.',
-        'Richten Sie das Auto gerade aus.'
+        'Fahre parallel neben das vordere Auto, ca. 50cm Abstand.',
+        'Bleibe stehen, wenn dein Heck auf gleicher Höhe mit dem anderen Heck ist.',
+        'Lenke komplett nach rechts ein und fahre langsam rückwärts.',
+        'Wenn dein Auto im 45-Grad-Winkel steht (du siehst das Nummernschild des hinteren Autos komplett im linken Außenspiegel), lenke geradeaus.',
+        'Fahre gerade rückwärts, bis deine Front am Heck des vorderen Autos vorbei ist.',
+        'Lenke nun komplett nach links und fahre weiter rückwärts in die Lücke.',
+        'Richte das Auto gerade aus.'
       ]
     },
     {
       key: 'reverse',
       title: 'Rückwärts einparken',
-      description: 'Sicher und präzise in eine enge Parklücke rückwärts einparken.',
+      description: 'Die beste Technik für Parkplätze im rechten Winkel zur Fahrbahn.',
       steps: [
-        'Fahren Sie an der Parklücke vorbei, halten Sie Abstand.',
-        'Schalten Sie in den Rückwärtsgang und lenken Sie scharf.',
-        'Korrigieren Sie bei Bedarf mit kleinen vorwärts/rückwärts Bewegungen.',
-        'Richten Sie das Fahrzeug gerade in der Lücke aus.'
+        'Fahre langsam an der Parklücke vorbei, in die du einparken möchtest.',
+        'Halte etwa 1,5m seitlichen Abstand zu den geparkten Autos.',
+        'Lege den Rückwärtsgang ein und kontrolliere dein Umfeld.',
+        'Lenke stark in Richtung der Lücke ein, sobald das Heck deines Autos das Nebenfahrzeug passiert.',
+        'Fahre langsam rückwärts in die Lücke.',
+        'Sobald das Auto parallel zu den Linien steht, lenke geradeaus.',
+        'Fahre rückwärts, bis du vollständig in der Lücke stehst.'
       ]
     },
     {
       key: 'diagonal',
-      title: 'Schrägparken',
-      description: 'Elegante Einfahrt in schrägliegende Parkplätze wie in Parkhäusern.',
+      title: 'Wende in 3 Zügen',
+      description: 'Sicheres Wenden auf engem Raum mit einem klaren Ablauf.',
       steps: [
-        'Positionieren Sie das Fahrzeug parallel zur Parklücke.',
-        'Lenken Sie sanft ein, wenn die Fahrzeugfront in der Lücke ist.',
-        'Nutzen Sie Rückspiegel und Schultern zur Orientierung.',
-        'Korrigieren Sie mit einem kurzen Vor-/Zurückmanöver.'
+        'Fahre dicht an den rechten Straßenrand und halte an.',
+        'Blinke links, lenke komplett nach links ein und fahre langsam vorwärts bis kurz vor den gegenüberliegenden Rand.',
+        'Lenke nun im Stand komplett nach rechts ein.',
+        'Fahre langsam rückwärts, um den Winkel deines Autos weiter zu verkleinern.',
+        'Schlage das Lenkrad wieder nach links ein und fahre vorwärts in die neue Richtung.',
+        'Beschleunige und ordne dich wieder auf der rechten Spur ein.'
       ]
     }
   ]
@@ -136,7 +144,9 @@ const Tutorials: React.FC<TutorialsProps> = ({ onOpenSimulator, mode }) => {
               <button disabled={!tutorial || stepIndex === tutorial.steps.length - 1} onClick={gotoNext}>Nächster Schritt</button>
             </div>
             <div className="tutorial-actions">
-              <button onClick={onOpenSimulator}>Simulator öffnen</button>
+              <button onClick={() => onOpenSimulator(currentTutorial !== null ? tutorials[currentTutorial].key as 'parallel' | 'reverse' | 'diagonal' : 'parallel', stepIndex)}>
+                Simulator öffnen
+              </button>
               <button onClick={() => setCurrentTutorial(null)}>Übersicht</button>
             </div>
           </div>

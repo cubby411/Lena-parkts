@@ -1,5 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 
+type SimulatorProps = {
+  tutorialMode?: 'parallel' | 'reverse' | 'diagonal' | null
+  tutorialStep?: number
+}
+
+type TutorialCommand = {
+  label: string
+  reset?: boolean
+  x?: number
+  y?: number
+  angle?: number
+  throttle?: number
+  steer?: number
+  duration?: number
+}
+
 class Car {
   x: number
   y: number
@@ -137,10 +153,11 @@ function drawStaticCar(ctx: CanvasRenderingContext2D, x: number, y: number, widt
   ctx.restore()
 }
 
-const Simulator: React.FC = () => {
+const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const carRef = useRef(new Car(180, 220, 0))
   const animationRef = useRef<number | null>(null)
+  const tutorialTimeoutRef = useRef<number | null>(null)
   const lastTimeRef = useRef(0)
 
   const [steerAngle, setSteerAngle] = useState(0)
@@ -150,6 +167,8 @@ const Simulator: React.FC = () => {
   const [success, setSuccess] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [parkPhase, setParkPhase] = useState(0)
+  const [tutorialHint, setTutorialHint] = useState('')
+  const [tutorialActive, setTutorialActive] = useState(false)
 
   const target = { x: 600, y: 290, w: 90, h: 50 }
 
@@ -159,6 +178,26 @@ const Simulator: React.FC = () => {
     { title: 'Rückwärts einleiten', text: 'Schalte in den Rückwärtsgang, lenke rechts voll und fahre langsam ein.' },
     { title: 'Finale Ausrichtung', text: 'Gerade ausfahren / korrigieren, damit das Auto zentriert in der Lücke steht.' }
   ]
+
+  const tutorialCommands: Record<'parallel' | 'reverse' | 'diagonal', TutorialCommand[]> = {
+    parallel: [
+      { label: 'Fahre parallel neben dem Auto (Start)', reset: true, x: 180, y: 220, angle: 0, throttle: 0, steer: 0 },
+      { label: 'Rückwärts, voll nach rechts lenken', throttle: -1, steer: 45, duration: 1.4 },
+      { label: 'Gerade rückwärts', throttle: -1, steer: 0, duration: 1.2 },
+      { label: 'Rückwärts, voll nach links lenken', throttle: -1, steer: -45, duration: 1.8 },
+      { label: 'Geradeaus korrigieren', throttle: -0.6, steer: 0, duration: 1.0 }
+    ],
+    reverse: [
+      { label: 'Positioniere dich seitlich an der Parklücke', reset: true, x: 180, y: 220, angle: 0, throttle: 0, steer: 0 },
+      { label: 'Rückwärts in die Lücke', throttle: -1, steer: 45, duration: 1.4 },
+      { label: 'Richte aus', throttle: -0.4, steer: 0, duration: 1.0 }
+    ],
+    diagonal: [
+      { label: 'Fahre parallele Anfahrt', reset: true, x: 180, y: 220, angle: 0, throttle: 0, steer: 0 },
+      { label: 'Vorwärts in die schräge Lücke', throttle: 1, steer: 20, duration: 1.6 },
+      { label: 'Rückwärts nachjustieren', throttle: -0.4, steer: -10, duration: 1.2 }
+    ]
+  }
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent))
@@ -183,6 +222,59 @@ const Simulator: React.FC = () => {
       setStatus('Halt')
     }
   }, [throttle])
+
+  useEffect(() => {
+    if (!tutorialMode) {
+      setTutorialHint('')
+      setTutorialActive(false)
+      return
+    }
+
+    const steps = tutorialCommands[tutorialMode]
+    if (!steps || tutorialStep == null || tutorialStep >= steps.length) {
+      setTutorialHint('')
+      setTutorialActive(false)
+      return
+    }
+
+    const step = steps[tutorialStep]
+    setTutorialHint(step.label)
+    setTutorialActive(true)
+
+    if (step.reset) {
+      const car = carRef.current
+      car.x = step.x ?? 180
+      car.y = step.y ?? 220
+      car.angle = step.angle ?? 0
+      car.speed = 0
+      car.steeringAngle = 0
+      setThrottle(0)
+      setSteerAngle(0)
+      setStatus('Halt')
+    }
+
+    if (typeof step.steer === 'number') setSteerAngle(step.steer)
+    if (typeof step.throttle === 'number') setThrottle(step.throttle)
+
+    if (tutorialTimeoutRef.current) {
+      window.clearTimeout(tutorialTimeoutRef.current)
+    }
+
+    if (step.duration) {
+      tutorialTimeoutRef.current = window.setTimeout(() => {
+        setThrottle(0)
+        setSteerAngle(0)
+        setStatus('Halt')
+        setTutorialActive(false)
+      }, step.duration * 1000)
+    }
+
+    return () => {
+      if (tutorialTimeoutRef.current) {
+        window.clearTimeout(tutorialTimeoutRef.current)
+      }
+    }
+  }, [tutorialMode, tutorialStep])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -279,6 +371,7 @@ const Simulator: React.FC = () => {
       if (e.key === 'ArrowDown') setThrottle(-1)
       if (e.key === 'ArrowLeft') setSteerAngle(prev => Math.max(-45, prev - 3))
       if (e.key === 'ArrowRight') setSteerAngle(prev => Math.min(45, prev + 3))
+      if (e.key === ' ' || e.key === 'Escape') setSteerAngle(0)
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -312,6 +405,8 @@ const Simulator: React.FC = () => {
     setStatus('Halt')
     setParkPhase(0)
     setSuccess(false)
+    setTutorialHint('')
+    setTutorialActive(false)
   }
 
   useEffect(() => {
@@ -350,8 +445,7 @@ const Simulator: React.FC = () => {
             onPointerLeave={() => setThrottle(0)}
             onTouchEnd={() => setThrottle(0)}
           >Rückwärts</button>
-          <button onClick={() => setThrottle(0)}>Stop</button>
-          <button onClick={reset}>Reset</button>
+          <button onClick={() => setSteerAngle(0)}>Lenkung zentrieren</button>
         </div>
       </div>
       <div className="simulator-step-list">
@@ -372,7 +466,19 @@ const Simulator: React.FC = () => {
 
       <div className="simulator-footer">
         <p>{success ? '✅ Erfolgreich eingeparkt!' : '🚗 Versuche einzuparken'}</p>
+        <button className="reset-btn" onClick={() => {
+          if (window.confirm('Reset Simulator? Alle aktuellen Fortschritte gehen verloren.')) {
+            reset()
+          }
+        }}>
+          Reset (mit Bestätigung)
+        </button>
       </div>
+      {tutorialMode && tutorialActive && (
+        <div className="tutorial-hint">
+          <strong>Tutorial Command:</strong> {tutorialHint}
+        </div>
+      )}
       {isMobile && <p className="mobile-hint">Touch: Steuerbuttons verwenden.</p>}
     </div>
   )

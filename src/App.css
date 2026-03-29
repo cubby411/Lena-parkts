@@ -509,7 +509,39 @@
 
 .simulator-action-buttons button:nth-child(1) { background: #2563eb; color: white; }
 .simulator-action-buttons button:nth-child(2) { background: #0ea5e9; color: white; }
-.simulator-action-buttons button:nth-child(3) { background: #f8fafc; color: #1e293b; border: 1px solid #cbd5e1; }
+.simulator-action-buttons button:nth-child(3) { background: #34d399; color: white; }
+
+.simulator-footer {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reset-btn {
+  border: none;
+  color: #fff;
+  background: #dc2626;
+  border-radius: 10px;
+  padding: 9px 13px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.reset-btn:hover {
+  filter: brightness(1.05);
+}
+
+.tutorial-hint {
+  margin-top: 10px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: #1e3a8a;
+  font-weight: 600;
+}
 
 .simulator-slider {
   border-radius: 14px;
