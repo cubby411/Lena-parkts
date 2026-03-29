@@ -127,7 +127,7 @@ function drawStaticCar(ctx: CanvasRenderingContext2D, x: number, y: number, widt
 
 const Simulator: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const carRef = useRef(new Car(180, 300, -Math.PI / 2))
+  const carRef = useRef(new Car(180, 220, 0))
   const animationRef = useRef<number | null>(null)
   const lastTimeRef = useRef(0)
 
@@ -139,13 +139,13 @@ const Simulator: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false)
   const [parkPhase, setParkPhase] = useState(0)
 
-  const target = { x: 600, y: 300, w: 90, h: 50 }
+  const target = { x: 600, y: 290, w: 90, h: 50 }
 
   const parkPhases = [
-    { title: 'Ausrichten & Vorbereiten', text: 'Fahre parallel zur Parklücke und halte circa 60–90 cm Abstand zum parkenden Auto.' },
-    { title: 'Rückwärts & Lenkrad rechts', text: 'Schalte Rückwärtsgang, lenke voll rechts und fahre langsam in den Parkplatz.' },
-    { title: 'Vorwärts & Lenkrad links', text: 'Lenke voll links und fahre vorwärts, um das Auto gerade auszurichten.' },
-    { title: 'Geradeaus & Einparken', text: 'Fahre geradeaus in die Parklücke und stelle das Fahrzeug zentriert.' }
+    { title: 'Anfahren', text: 'Fahre am Parkplatz vorbei, halte dich in der Fahrspur und richte dich längs aus.' },
+    { title: 'Vorpositionieren', text: 'Halte an parallel zum Parkplatz und positioniere dich hinter dem linken parkenden Auto.' },
+    { title: 'Rückwärts einleiten', text: 'Schalte in den Rückwärtsgang, lenke rechts voll und fahre langsam ein.' },
+    { title: 'Finale Ausrichtung', text: 'Gerade ausfahren / korrigieren, damit das Auto zentriert in der Lücke steht.' }
   ]
 
   useEffect(() => {
@@ -236,14 +236,14 @@ const Simulator: React.FC = () => {
 
       const dist = Math.hypot(car.x - target.x, car.y - target.y)
       const carAngleNorm = ((car.angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
-      const goalAngle = (((-Math.PI / 2) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
+      const goalAngle = 0
       const angleDiff = Math.min(Math.abs(carAngleNorm - goalAngle), 2 * Math.PI - Math.abs(carAngleNorm - goalAngle))
 
       const phaseDone = [
-        () => car.x > 240 && car.x < 260 && Math.abs(car.y - 300) < 20,
-        () => dist < 150 && Math.abs(car.angle + Math.PI / 2) < 0.6,
-        () => dist < 90 && Math.abs(car.angle + Math.PI / 2) < 0.4,
-        () => dist < 40 && Math.abs(angleDiff) < 0.4 && Math.abs(car.speed) < 15
+        () => car.x > 240 && car.x < 260 && Math.abs(car.y - 220) < 24,
+        () => dist < 180 && Math.abs(car.angle) < 0.8,
+        () => dist < 120 && Math.abs(car.angle) < 0.6,
+        () => dist < 40 && angleDiff < 0.3 && Math.abs(car.speed) < 15
       ][parkPhase]
 
       if (phaseDone()) {
@@ -290,16 +290,21 @@ const Simulator: React.FC = () => {
   const reset = () => {
     const car = carRef.current
     car.x = 180
-    car.y = 300
-    car.angle = -Math.PI / 2
+    car.y = 220
+    car.angle = 0
     car.speed = 0
     car.steeringAngle = 0
     setThrottle(0)
     setSteerAngle(0)
     setVelocity(0)
     setStatus('Halt')
+    setParkPhase(0)
     setSuccess(false)
   }
+
+  useEffect(() => {
+    reset()
+  }, [])
 
   return (
     <div className="simulator-page">
@@ -321,8 +326,18 @@ const Simulator: React.FC = () => {
           <div>{status}</div>
         </div>
         <div className="simulator-control-card simulator-action-buttons">
-          <button onClick={() => setThrottle(1)}>Vorwärts</button>
-          <button onClick={() => setThrottle(-1)}>Rückwärts</button>
+          <button
+            onPointerDown={() => setThrottle(1)}
+            onPointerUp={() => setThrottle(0)}
+            onPointerLeave={() => setThrottle(0)}
+            onTouchEnd={() => setThrottle(0)}
+          >Vorwärts</button>
+          <button
+            onPointerDown={() => setThrottle(-1)}
+            onPointerUp={() => setThrottle(0)}
+            onPointerLeave={() => setThrottle(0)}
+            onTouchEnd={() => setThrottle(0)}
+          >Rückwärts</button>
           <button onClick={() => setThrottle(0)}>Stop</button>
           <button onClick={reset}>Reset</button>
         </div>
