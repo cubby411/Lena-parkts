@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Simulator from './Simulator'
 
 type TutorialMode = 'auto' | 'parallel' | 'reverse' | 'diagonal' | 'home'
 
@@ -154,9 +155,9 @@ const Tutorials: React.FC<TutorialsProps> = ({ onOpenSimulator, mode }) => {
             <div className="preview-card">
               <h4>Schritt {stepIndex + 1} / {tutorial?.steps.length}</h4>
               <p>{tutorial?.steps[stepIndex]}</p>
-              <div className="preview-illustration">
-                <p>🖼️ Visualisierung für Schritt {stepIndex + 1}</p>
-              </div>
+            </div>
+            <div className="preview-simulator">
+              <Simulator tutorialMode={tutorial?.key as 'parallel' | 'reverse' | 'diagonal'} tutorialStep={stepIndex} embedded />
             </div>
           </div>
         </div>

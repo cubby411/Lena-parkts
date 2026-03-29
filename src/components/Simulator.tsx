@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 type SimulatorProps = {
   tutorialMode?: 'parallel' | 'reverse' | 'diagonal' | null
   tutorialStep?: number
+  embedded?: boolean
 }
 
 type TutorialCommand = {
@@ -153,12 +154,14 @@ function drawStaticCar(ctx: CanvasRenderingContext2D, x: number, y: number, widt
   ctx.restore()
 }
 
-const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep }) => {
+const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embedded }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const carRef = useRef(new Car(180, 220, 0))
   const animationRef = useRef<number | null>(null)
   const tutorialTimeoutRef = useRef<number | null>(null)
   const lastTimeRef = useRef(0)
+  const controlsVisible = !embedded
+  const stepListVisible = !embedded
 
   const [steerAngle, setSteerAngle] = useState(0)
   const [throttle, setThrottle] = useState(0)
@@ -423,8 +426,9 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep }) => 
       <div className="simulator-canvas-wrapper">
         <canvas ref={canvasRef} width={900} height={420} />
       </div>
-      <div className="simulator-control-wrap">
-        <div className="simulator-control-card">
+      {controlsVisible && (
+        <div className="simulator-control-wrap">
+          <div className="simulator-control-card">
           <strong>Lenkwinkel</strong> {steerAngle}°
           <input type="range" min={-45} max={45} value={steerAngle} onChange={e => setSteerAngle(Number(e.target.value))} />
         </div>
@@ -448,7 +452,9 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep }) => 
           <button onClick={() => setSteerAngle(0)}>Lenkung zentrieren</button>
         </div>
       </div>
-      <div className="simulator-step-list">
+      )}
+      {stepListVisible && (
+        <div className="simulator-step-list">
         <h3>Parkvorgang</h3>
         <ol>
           {parkPhases.map((phase, idx) => (
@@ -463,6 +469,7 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep }) => 
           <button onClick={() => setParkPhase(prev => Math.min(parkPhases.length - 1, prev + 1))} disabled={parkPhase === parkPhases.length - 1}>Weiter</button>
         </div>
       </div>
+      )}
 
       <div className="simulator-footer">
         <p>{success ? '✅ Erfolgreich eingeparkt!' : '🚗 Versuche einzuparken'}</p>
