@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lena parkts - Parking Simulator</title>
+    <meta name="description" content="Interaktiver Einpark-Simulator und Ratgeber. Lerne Seitwärts- und Rückwärtseinparken.">
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="navbar">
+        <div class="logo">Lena <span>parkts</span></div>
+        <nav class="nav-links">
+            <button id="btn-guides" class="nav-btn active" data-i18n="nav-guides">Anleitungen</button>
+            <button id="btn-simulator" class="nav-btn" data-i18n="nav-simulator">Simulator</button>
+        </nav>
+        <div class="lang-switch">
+            <button id="lang-de" class="lang-btn active">DE</button>
+            <button id="lang-ru" class="lang-btn">RU</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Guides View -->
+        <section id="view-guides" class="view active fade-in">
+            <div class="hero">
+                <h1 data-i18n="guides-title">Perfekt Einparken lernen</h1>
+                <p data-i18n="guides-intro">Wähle eine Situation aus, um die Schritt-für-Schritt Anleitung zu sehen.</p>
+            </div>
+            
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon">🚗</div>
+                    <h2 data-i18n="guide-parallel">Seitwärts einparken</h2>
+                    <p data-i18n="guide-parallel-desc">Lerne, wie du mühelos parallel zur Fahrbahn in kleine Lücken kommst.</p>
+                    <button class="btn-primary" data-i18n="btn-learn">Erkunden</button>
+                </div>
+                <div class="card" style="background: var(--bg-card); padding: 20px; border-radius: 12px; border-left: 5px solid var(--accent); display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <h2 data-i18n="guide-perpendicular" style="color: var(--primary); margin-bottom: 10px;">Rückwärts einparken</h2>
+                        <p data-i18n="desc-perpendicular" style="color: var(--text-muted); margin-bottom: 20px;">Ideal für Parkhäuser: Rückwärts in eine querliegende Parklücke.</p>
+                    </div>
+                    <button class="btn-primary" data-i18n="btn-explore" style="align-self: flex-start;">Erkunden</button>
+                </div>
+
+                <div class="card" style="background: var(--bg-card); padding: 20px; border-radius: 12px; border-left: 5px solid var(--accent); display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <h2 data-i18n="guide-turn" style="color: var(--primary); margin-bottom: 10px;">Wenden in 3 Zügen</h2>
+                        <p data-i18n="desc-turn" style="color: var(--text-muted); margin-bottom: 20px;">Lerne, wie du dein Auto auf einer schmalen Straße in 3 Zügen sicher wendest.</p>
+                    </div>
+                    <button class="btn-primary" data-i18n="btn-explore" style="align-self: flex-start;">Erkunden</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Guide Detail View -->
+        <section id="view-guide-detail" class="view fade-in" style="display: none;">
+            <button id="btn-back-guides" class="btn-secondary" data-i18n="btn-back" style="margin-bottom: 20px; background: transparent; color: var(--primary); border: 1px solid var(--primary); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: 0.3s;">← Zurück</button>
+            <h1 id="guide-detail-title" style="margin-bottom: 20px; color: var(--primary);"></h1>
+            
+            <div class="tutorial-container" style="display: flex; gap: 30px; background: var(--bg-card); padding: 30px; border-radius: 20px; align-items: flex-start; flex-wrap: wrap;">
+                <div class="canvas-wrapper" style="position: relative; max-width: 800px; margin: 0 auto; overflow: hidden; border-radius: 12px; border: 2px solid rgba(255,255,255,0.1);">
+                    <canvas id="tutorial-canvas" width="600" height="450" style="background: var(--bg-dark); width: 100%; height: auto; display: block;"></canvas>
+                </div>
+                
+                <div class="tutorial-controls" style="flex: 1 1 300px; display: flex; flex-direction: column; justify-content: flex-start;">
+                    <div style="margin-bottom: 40px;">
+                        <div id="tutorial-step-indicator" style="font-size: 1.1rem; font-weight: 800; color: var(--primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Schritt 1/x</div>
+                        <p id="tutorial-step-text" style="font-size: 1.3rem; color: var(--text-main); line-height: 1.6; font-weight: 600;"></p>
+                    </div>
+                    
+                    <div class="tutorial-nav" style="display: flex; gap: 15px;">
+                        <button id="btn-tutorial-prev" class="btn-primary" style="flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); transition: 0.3s;" data-i18n="btn-prev">&larr; Vorheriger</button>
+                        <button id="btn-tutorial-next" class="btn-primary" style="flex: 1; transition: 0.3s;" data-i18n="btn-next">Nächster &rarr;</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Simulator View -->
+        <section id="view-simulator" class="view fade-in" style="display: none;">
+            <div class="simulator-header">
+                <h1 data-i18n="sim-title">Simulator</h1>
+                <p data-i18n="sim-subtitle">Wähle den Lenkwinkel und fahre vorsichtig.</p>
+                <div class="scenario-selector" style="margin-top: 15px;">
+                    <label style="color: var(--text-muted); margin-right: 10px;" data-i18n="scenario-label">Situation:</label>
+                        <select id="scenario-select" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 8px; outline: none; transition: 0.3s; cursor: pointer;">
+                            <option value="parallel" data-i18n="scenario-parallel">Seitwärts einparken</option>
+                            <option value="perpendicular" data-i18n="scenario-perpendicular">Rückwärts einparken</option>
+                            <option value="turn" data-i18n="scenario-turn">Wenden in 3 Zügen</option>
+                        </select>
+                </div>
+            </div>
+            
+            <div class="simulator-container">
+                <div style="position: relative; border-radius: 12px; overflow: hidden; border: 2px solid rgba(255,255,255,0.1); margin-bottom: 20px;">
+                    <canvas id="sim-canvas" width="800" height="600" style="background: var(--bg-dark); max-width: 100%; height: auto; display: block;"></canvas>
+                    
+                    <div id="stvo-assistant" style="display: none; position: absolute; top: 15px; left: 15px; background: rgba(15, 23, 42, 0.9); border-left: 4px solid var(--accent); padding: 15px; border-radius: 8px; color: white; width: 320px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); pointer-events: none; z-index: 50;">
+                        <h3 style="font-size: 1rem; color: var(--primary); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;"><span>🤖</span> StVO Consultant</h3>
+                        <div id="stvo-feedback" style="font-size: 0.9rem; line-height: 1.4; color: var(--text-main);"></div>
+                    </div>
+
+                    <div id="win-overlay" style="display: none; position: absolute; inset: 0; background: rgba(22, 101, 52, 0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; color: white;">
+                        <h2 id="win-title" data-i18n="win-title" style="font-size: 3rem; margin-bottom: 20px; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">Perfekt eingeparkt!</h2>
+                        <p id="win-subtitle" data-i18n="win-subtitle" style="font-size: 1.5rem; margin-bottom: 30px; text-align: center; padding: 0 20px;">Hervorragend, das Auto steht perfekt in der Lücke.</p>
+                        <button id="btn-win-restart" data-i18n="btn-win-restart" class="btn-primary" style="background: white; color: #166534; padding: 15px 30px; font-size: 1.2rem; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border-radius: 8px; cursor: pointer;">Nochmal versuchen</button>
+                    </div>
+                </div>
+                
+                <div class="controls-panel">
+                    <div class="steering-control">
+                        <label for="steering-slider" data-i18n="steer-angle">Lenkwinkel</label>
+                        <div class="slider-wrapper">
+                            <span class="steer-label left">L</span>
+                            <input type="range" id="steering-slider" min="-40" max="40" value="0">
+                            <span class="steer-label right">R</span>
+                        </div>
+                        <div id="steering-value" class="value-display">0°</div>
+                    </div>
+                    
+                    <div class="drive-controls">
+                        <button id="btn-drive-fwd" class="btn-drive" data-i18n="btn-forward">
+                            <span class="arrow">↑</span> Vorwärts
+                        </button>
+                        <button id="btn-drive-rev" class="btn-drive" data-i18n="btn-reverse">
+                            <span class="arrow">↓</span> Rückwärts
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/i18n.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/simulator.js"></script>
+</body>
+</html>
