@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import Simulator from './Simulator'
+import { tutorialDefinitions } from '../tutorials/definitions'
+import type { TutorialModeKey } from '../simulation/types'
 
 type TutorialMode = 'auto' | 'parallel' | 'reverse' | 'diagonal' | 'home'
 
@@ -11,60 +13,28 @@ type TutorialsProps = {
 const Tutorials: React.FC<TutorialsProps> = ({ onOpenSimulator, mode }) => {
   const [currentTutorial, setCurrentTutorial] = useState<number | null>(null)
 
-  const tutorials = [
-    {
-      key: 'home',
-      title: 'Einführung ins Parken',
-      description: 'Lernen Sie die Grundlagen des Parkens in Deutschland.',
-      steps: [
-        'Wählen Sie einen Parkplatz aus.',
-        'Fahren Sie rückwärts in den Parkplatz.',
-        'Achten Sie auf den Abstand zu anderen Fahrzeugen.',
-        'Parken Sie immer auf der rechten Seite.'
-      ]
-    },
-    {
-      key: 'parallel',
-      title: 'Seitwärts einparken',
-      description: 'Lerne, wie du mühelos parallel zur Fahrbahn in kleine Lücken kommst.',
-      steps: [
-        'Fahre parallel neben das vordere Auto, ca. 50cm Abstand.',
-        'Bleibe stehen, wenn dein Heck auf gleicher Höhe mit dem anderen Heck ist.',
-        'Lenke komplett nach rechts ein und fahre langsam rückwärts.',
-        'Wenn dein Auto im 45-Grad-Winkel steht (du siehst das Nummernschild des hinteren Autos komplett im linken Außenspiegel), lenke geradeaus.',
-        'Fahre gerade rückwärts, bis deine Front am Heck des vorderen Autos vorbei ist.',
-        'Lenke nun komplett nach links und fahre weiter rückwärts in die Lücke.',
-        'Richte das Auto gerade aus.'
-      ]
-    },
-    {
-      key: 'reverse',
-      title: 'Rückwärts einparken',
-      description: 'Die beste Technik für Parkplätze im rechten Winkel zur Fahrbahn.',
-      steps: [
-        'Fahre langsam an der Parklücke vorbei, in die du einparken möchtest.',
-        'Halte etwa 1,5m seitlichen Abstand zu den geparkten Autos.',
-        'Lege den Rückwärtsgang ein und kontrolliere dein Umfeld.',
-        'Lenke stark in Richtung der Lücke ein, sobald das Heck deines Autos das Nebenfahrzeug passiert.',
-        'Fahre langsam rückwärts in die Lücke.',
-        'Sobald das Auto parallel zu den Linien steht, lenke geradeaus.',
-        'Fahre rückwärts, bis du vollständig in der Lücke stehst.'
-      ]
-    },
-    {
-      key: 'diagonal',
-      title: 'Wende in 3 Zügen',
-      description: 'Sicheres Wenden auf engem Raum mit einem klaren Ablauf.',
-      steps: [
-        'Fahre dicht an den rechten Straßenrand und halte an.',
-        'Blinke links, lenke komplett nach links ein und fahre langsam vorwärts bis kurz vor den gegenüberliegenden Rand.',
-        'Lenke nun im Stand komplett nach rechts ein.',
-        'Fahre langsam rückwärts, um den Winkel deines Autos weiter zu verkleinern.',
-        'Schlage das Lenkrad wieder nach links ein und fahre vorwärts in die neue Richtung.',
-        'Beschleunige und ordne dich wieder auf der rechten Spur ein.'
-      ]
-    }
-  ]
+  // Zentrale Tutorial-Definition aus gemeinsamer Quelle
+  const commandModesList = Object.values(tutorialDefinitions).map((def, idx) => ({
+    key: def.key,
+    title: def.title,
+    description: def.description,
+    steps: def.steps.map(s => s.instruction)
+  }))
+
+  // Zusätzlich Home-Seite (UI-only, nicht command-basiert)
+  const homeOnly = {
+    key: 'home',
+    title: 'Einführung ins Parken',
+    description: 'Lernen Sie die Grundlagen des Parkens in Deutschland.',
+    steps: [
+      'Wählen Sie einen Parkplatz aus.',
+      'Fahren Sie rückwärts in den Parkplatz.',
+      'Achten Sie auf den Abstand zu anderen Fahrzeugen.',
+      'Parken Sie immer auf der rechten Seite.'
+    ]
+  }
+
+  const tutorials = [homeOnly, ...commandModesList]
 
   useEffect(() => {
     if (!mode || mode === 'home') {
@@ -145,19 +115,23 @@ const Tutorials: React.FC<TutorialsProps> = ({ onOpenSimulator, mode }) => {
               <button disabled={!tutorial || stepIndex === tutorial.steps.length - 1} onClick={gotoNext}>Nächster Schritt</button>
             </div>
             <div className="tutorial-actions">
-              <button onClick={() => onOpenSimulator(currentTutorial !== null ? tutorials[currentTutorial].key as 'parallel' | 'reverse' | 'diagonal' : 'parallel', stepIndex)}>
-                Simulator öffnen
-              </button>
+              {(tutorial?.key === 'parallel' || tutorial?.key === 'reverse' || tutorial?.key === 'diagonal') && (
+                <button onClick={() => onOpenSimulator(tutorial.key, stepIndex)}>
+                  Simulator öffnen
+                </button>
+              )}
               <button onClick={() => setCurrentTutorial(null)}>Übersicht</button>
             </div>
           </div>
           <div className="tutorial-preview">
             <div className="preview-card">
               <h4>Schritt {stepIndex + 1} / {tutorial?.steps.length}</h4>
-              <p>{tutorial?.steps[stepIndex]}</p>
+              <p>{typeof tutorial?.steps[stepIndex] === 'string' ? tutorial.steps[stepIndex] : (tutorial?.steps[stepIndex] as any)?.instruction}</p>
             </div>
             <div className="preview-simulator">
-              <Simulator tutorialMode={tutorial?.key as 'parallel' | 'reverse' | 'diagonal'} tutorialStep={stepIndex} embedded />
+              {(tutorial?.key === 'parallel' || tutorial?.key === 'reverse' || tutorial?.key === 'diagonal') && (
+                <Simulator tutorialMode={tutorial.key} tutorialStep={stepIndex} embedded />
+              )}
             </div>
           </div>
         </div>
