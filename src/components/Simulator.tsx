@@ -8,13 +8,24 @@ type SimulatorProps = {
 
 type TutorialCommand = {
   label: string
-  reset?: boolean
-  x?: number
-  y?: number
-  angle?: number
-  throttle?: number
+  speed?: number
   steer?: number
   duration?: number
+}
+
+type TutorialModeKey = 'parallel' | 'reverse' | 'diagonal'
+
+type CarPose = {
+  x: number
+  y: number
+  angle: number
+}
+
+type TutorialStepPlan = {
+  label: string
+  startPose: CarPose
+  endPose: CarPose
+  duration: number
 }
 
 class Car {
@@ -154,12 +165,176 @@ function drawStaticCar(ctx: CanvasRenderingContext2D, x: number, y: number, widt
   ctx.restore()
 }
 
+const sceneLayout = {
+  roadTop: 100,
+  roadBottom: 280,
+  dashedY: 150,
+  curbY: 280,
+  parkingTop: 290,
+  parkingBottom: 350,
+  sidewalkTop: 360,
+  parkedCarY: 320,
+  parkedCarWidth: 42,
+  parkedCarLength: 85,
+  rearParkedCarX: 310,
+  frontParkedCarX: 640,
+  target: { x: 485, y: 320, w: 210, h: 60 },
+  startPose: { x: 210, y: 230, angle: 0 }
+} as const
+
+const tutorialScripts: Record<TutorialModeKey, { startPose: CarPose; commands: TutorialCommand[] }> = {
+  parallel: {
+    startPose: sceneLayout.startPose,
+    commands: [
+      { label: 'Fahre parallel neben das vordere Auto', speed: 100, steer: 0, duration: 2000 },
+      { label: 'Bleibe stehen, wenn dein Heck auf gleicher Höhe ist', speed: 100, steer: 0, duration: 2150 },
+      { label: 'Lenke komplett nach rechts und fahre rückwärts', speed: -50, steer: 45, duration: 1800 },
+      { label: 'Wenn du bei 45 Grad bist, lenke geradeaus', speed: -50, steer: 0, duration: 1100 },
+      { label: 'Fahre gerade rückwärts, bis deine Front vorbei ist', speed: -50, steer: 0, duration: 600 },
+      { label: 'Lenke komplett nach links und fahre weiter rückwärts', speed: -50, steer: -45, duration: 1800 },
+      { label: 'Richte das Auto gerade aus', speed: -20, steer: 0, duration: 500 }
+    ]
+  },
+  reverse: {
+    startPose: { x: 120, y: 210, angle: 0 },
+    commands: [
+      { label: 'Fahre langsam an der Parklücke vorbei', speed: 100, steer: 0, duration: 1500 },
+      { label: 'Halte etwa 1,5m seitlichen Abstand', speed: 100, steer: 0, duration: 1500 },
+      { label: 'Kontrolliere dein Umfeld', speed: 100, steer: 0, duration: 2000 },
+      { label: 'Lenke stark in Richtung der Lücke', speed: -50, steer: 45, duration: 2000 },
+      { label: 'Fahre langsam rückwärts in die Lücke', speed: -50, steer: 45, duration: 1200 },
+      { label: 'Lenke geradeaus, sobald du parallel bist', speed: -50, steer: 0, duration: 1200 },
+      { label: 'Fahre vollständig in die Lücke', speed: -50, steer: 0, duration: 800 }
+    ]
+  },
+  diagonal: {
+    startPose: { x: 700, y: 360, angle: 0 },
+    commands: [
+      { label: 'Setze zurück, um Platz zu gewinnen', speed: -100, steer: 0, duration: 2000 },
+      { label: 'Lenke voll links und fahre vorwärts', speed: 80, steer: -45, duration: 2300 },
+      { label: 'Lenke im Stand voll nach rechts ein', speed: 0, steer: 45, duration: 1000 },
+      { label: 'Fahre rückwärts, um den Winkel zu verkleinern', speed: -80, steer: 45, duration: 2400 },
+      { label: 'Lenke wieder links und fahre vorwärts', speed: 80, steer: -45, duration: 2000 },
+      { label: 'Ordne dich sauber in die neue Richtung ein', speed: 80, steer: 0, duration: 2200 }
+    ]
+  }
+}
+
+function setCarPose(car: Car, pose: CarPose) {
+  car.x = pose.x
+  car.y = pose.y
+  car.angle = pose.angle
+  car.speed = 0
+  car.steeringAngle = 0
+}
+
+function simulatePose(startPose: CarPose, command: TutorialCommand) {
+  const car = new Car(startPose.x, startPose.y, startPose.angle)
+  const dt = 1 / 60
+  car.setSteering(command.steer ?? 0)
+  car.setSpeed(command.speed ?? 0)
+
+  const frameCount = Math.floor((command.duration ?? 0) / (dt * 1000))
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    car.update(dt)
+  }
+
+  return { x: car.x, y: car.y, angle: car.angle }
+}
+
+function buildTutorialPlans(script: { startPose: CarPose; commands: TutorialCommand[] }) {
+  const plans: TutorialStepPlan[] = []
+  let currentPose = script.startPose
+
+  script.commands.forEach(command => {
+    const nextPose = simulatePose(currentPose, command)
+    plans.push({
+      label: command.label,
+      startPose: currentPose,
+      endPose: nextPose,
+      duration: command.duration ?? 0
+    })
+    currentPose = nextPose
+  })
+
+  return plans
+}
+
+function easeInOut(progress: number) {
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2
+}
+
+function interpolateAngle(start: number, end: number, progress: number) {
+  const diff = Math.atan2(Math.sin(end - start), Math.cos(end - start))
+  return start + diff * progress
+}
+
+function interpolatePose(startPose: CarPose, endPose: CarPose, progress: number) {
+  const eased = easeInOut(progress)
+  return {
+    x: startPose.x + (endPose.x - startPose.x) * eased,
+    y: startPose.y + (endPose.y - startPose.y) * eased,
+    angle: interpolateAngle(startPose.angle, endPose.angle, eased)
+  }
+}
+
+const tutorialPlans: Record<TutorialModeKey, TutorialStepPlan[]> = {
+  parallel: [
+    {
+      label: 'Fahre parallel neben das vordere Auto',
+      startPose: sceneLayout.startPose,
+      endPose: { x: 560, y: 230, angle: 0 },
+      duration: 1600
+    },
+    {
+      label: 'Bleibe stehen, wenn dein Heck auf gleicher Höhe ist',
+      startPose: { x: 560, y: 230, angle: 0 },
+      endPose: { x: 612, y: 230, angle: 0 },
+      duration: 900
+    },
+    {
+      label: 'Lenke komplett nach rechts und fahre rückwärts',
+      startPose: { x: 612, y: 230, angle: 0 },
+      endPose: { x: 560, y: 262, angle: -0.48 },
+      duration: 1400
+    },
+    {
+      label: 'Wenn du bei 45 Grad bist, lenke geradeaus',
+      startPose: { x: 560, y: 262, angle: -0.48 },
+      endPose: { x: 522, y: 288, angle: -0.78 },
+      duration: 900
+    },
+    {
+      label: 'Fahre gerade rückwärts, bis deine Front vorbei ist',
+      startPose: { x: 522, y: 288, angle: -0.78 },
+      endPose: { x: 475, y: 304, angle: -0.78 },
+      duration: 800
+    },
+    {
+      label: 'Lenke komplett nach links und fahre weiter rückwärts',
+      startPose: { x: 475, y: 304, angle: -0.78 },
+      endPose: { x: 438, y: 320, angle: -0.2 },
+      duration: 1300
+    },
+    {
+      label: 'Richte das Auto gerade aus',
+      startPose: { x: 438, y: 320, angle: -0.2 },
+      endPose: { x: 485, y: 320, angle: 0 },
+      duration: 700
+    }
+  ],
+  reverse: buildTutorialPlans(tutorialScripts.reverse),
+  diagonal: buildTutorialPlans(tutorialScripts.diagonal)
+}
+
 const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embedded }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const carRef = useRef(new Car(180, 220, 0))
+  const carRef = useRef(new Car(sceneLayout.startPose.x, sceneLayout.startPose.y, sceneLayout.startPose.angle))
   const animationRef = useRef<number | null>(null)
-  const tutorialTimeoutRef = useRef<number | null>(null)
   const lastTimeRef = useRef(0)
+  const tutorialPlaybackRef = useRef<{ startedAt: number; step: TutorialStepPlan } | null>(null)
   const controlsVisible = !embedded
   const stepListVisible = !embedded
 
@@ -173,7 +348,7 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
   const [tutorialHint, setTutorialHint] = useState('')
   const [tutorialActive, setTutorialActive] = useState(false)
 
-  const target = { x: 600, y: 290, w: 90, h: 50 }
+  const target = sceneLayout.target
 
   const parkPhases = [
     { title: 'Anfahren', text: 'Fahre am Parkplatz vorbei, halte dich in der Fahrspur und richte dich längs aus.' },
@@ -181,26 +356,6 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
     { title: 'Rückwärts einleiten', text: 'Schalte in den Rückwärtsgang, lenke rechts voll und fahre langsam ein.' },
     { title: 'Finale Ausrichtung', text: 'Gerade ausfahren / korrigieren, damit das Auto zentriert in der Lücke steht.' }
   ]
-
-  const tutorialCommands: Record<'parallel' | 'reverse' | 'diagonal', TutorialCommand[]> = {
-    parallel: [
-      { label: 'Fahre parallel neben dem Auto (Start)', reset: true, x: 180, y: 220, angle: 0, throttle: 0, steer: 0 },
-      { label: 'Rückwärts, voll nach rechts lenken', throttle: -1, steer: 45, duration: 1.4 },
-      { label: 'Gerade rückwärts', throttle: -1, steer: 0, duration: 1.2 },
-      { label: 'Rückwärts, voll nach links lenken', throttle: -1, steer: -45, duration: 1.8 },
-      { label: 'Geradeaus korrigieren', throttle: -0.6, steer: 0, duration: 1.0 }
-    ],
-    reverse: [
-      { label: 'Positioniere dich seitlich an der Parklücke', reset: true, x: 180, y: 220, angle: 0, throttle: 0, steer: 0 },
-      { label: 'Rückwärts in die Lücke', throttle: -1, steer: 45, duration: 1.4 },
-      { label: 'Richte aus', throttle: -0.4, steer: 0, duration: 1.0 }
-    ],
-    diagonal: [
-      { label: 'Fahre parallele Anfahrt', reset: true, x: 180, y: 220, angle: 0, throttle: 0, steer: 0 },
-      { label: 'Vorwärts in die schräge Lücke', throttle: 1, steer: 20, duration: 1.6 },
-      { label: 'Rückwärts nachjustieren', throttle: -0.4, steer: -10, duration: 1.2 }
-    ]
-  }
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent))
@@ -214,14 +369,19 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
   }, [steerAngle])
 
   useEffect(() => {
-    if (throttle === 1) {
-      carRef.current.setSpeed(90)
+    if (throttle > 0) {
+      const speed = 90 * throttle
+      carRef.current.setSpeed(speed)
+      setVelocity(speed)
       setStatus('Vorwärts')
-    } else if (throttle === -1) {
-      carRef.current.setSpeed(-40)
+    } else if (throttle < 0) {
+      const speed = 40 * throttle
+      carRef.current.setSpeed(speed)
+      setVelocity(speed)
       setStatus('Rückwärts')
     } else {
       carRef.current.setSpeed(0)
+      setVelocity(0)
       setStatus('Halt')
     }
   }, [throttle])
@@ -230,13 +390,15 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
     if (!tutorialMode) {
       setTutorialHint('')
       setTutorialActive(false)
+      tutorialPlaybackRef.current = null
       return
     }
 
-    const steps = tutorialCommands[tutorialMode]
+    const steps = tutorialPlans[tutorialMode]
     if (!steps || tutorialStep == null || tutorialStep >= steps.length) {
       setTutorialHint('')
       setTutorialActive(false)
+      tutorialPlaybackRef.current = null
       return
     }
 
@@ -244,38 +406,17 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
     setTutorialHint(step.label)
     setTutorialActive(true)
 
-    if (step.reset) {
-      const car = carRef.current
-      car.x = step.x ?? 180
-      car.y = step.y ?? 220
-      car.angle = step.angle ?? 0
-      car.speed = 0
-      car.steeringAngle = 0
-      setThrottle(0)
-      setSteerAngle(0)
-      setStatus('Halt')
-    }
-
-    if (typeof step.steer === 'number') setSteerAngle(step.steer)
-    if (typeof step.throttle === 'number') setThrottle(step.throttle)
-
-    if (tutorialTimeoutRef.current) {
-      window.clearTimeout(tutorialTimeoutRef.current)
-    }
-
-    if (step.duration) {
-      tutorialTimeoutRef.current = window.setTimeout(() => {
-        setThrottle(0)
-        setSteerAngle(0)
-        setStatus('Halt')
-        setTutorialActive(false)
-      }, step.duration * 1000)
-    }
+    const car = carRef.current
+    setCarPose(car, step.startPose)
+    setThrottle(0)
+    setSteerAngle(0)
+    setVelocity(0)
+    setStatus('Halt')
+    tutorialPlaybackRef.current = { startedAt: performance.now(), step }
+    lastTimeRef.current = 0
 
     return () => {
-      if (tutorialTimeoutRef.current) {
-        window.clearTimeout(tutorialTimeoutRef.current)
-      }
+      tutorialPlaybackRef.current = null
     }
   }, [tutorialMode, tutorialStep])
 
@@ -290,36 +431,43 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
       ctx.fillStyle = '#f0f3f8'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      ctx.fillStyle = '#4b5563'
-      ctx.fillRect(0, 100, canvas.width, 190)
+      ctx.fillStyle = '#475569'
+      ctx.fillRect(0, sceneLayout.roadTop, canvas.width, sceneLayout.roadBottom - sceneLayout.roadTop)
 
       ctx.strokeStyle = '#e2e8f0'
       ctx.lineWidth = 4
       ctx.setLineDash([18, 18])
       ctx.beginPath()
-      ctx.moveTo(0, 190)
-      ctx.lineTo(canvas.width, 190)
+      ctx.moveTo(0, sceneLayout.dashedY)
+      ctx.lineTo(canvas.width, sceneLayout.dashedY)
       ctx.stroke()
       ctx.setLineDash([])
 
-      ctx.fillStyle = '#dbeafe'
-      ctx.fillRect(0, 290, canvas.width, 20)
+      ctx.beginPath()
+      ctx.moveTo(0, sceneLayout.curbY)
+      ctx.lineTo(canvas.width, sceneLayout.curbY)
+      ctx.stroke()
 
-      drawStaticCar(ctx, 120, 150, 36, 72, '#1d4ed8')
-      drawStaticCar(ctx, 680, 150, 36, 72, '#1d4ed8')
-      drawStaticCar(ctx, 530, 290, 36, 72, '#2563eb')
+      ctx.fillStyle = '#94a3b8'
+      ctx.fillRect(0, sceneLayout.sidewalkTop, canvas.width, 30)
 
-      ctx.strokeStyle = '#f59e0b'
+      ctx.fillStyle = '#166534'
+      ctx.fillRect(0, sceneLayout.sidewalkTop + 30, canvas.width, canvas.height - sceneLayout.sidewalkTop - 30)
+
+      drawStaticCar(ctx, sceneLayout.rearParkedCarX, sceneLayout.parkedCarY, sceneLayout.parkedCarWidth, sceneLayout.parkedCarLength, '#ef4444')
+      drawStaticCar(ctx, sceneLayout.frontParkedCarX, sceneLayout.parkedCarY, sceneLayout.parkedCarWidth, sceneLayout.parkedCarLength, '#64748b')
+
+      ctx.strokeStyle = '#facc15'
       ctx.lineWidth = 2
-      ctx.setLineDash([8, 8])
+      ctx.setLineDash([10, 5])
       ctx.strokeRect(target.x - target.w / 2, target.y - target.h / 2, target.w, target.h)
       ctx.setLineDash([])
 
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.18)'
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.4)'
       ctx.fillRect(target.x - target.w / 2, target.y - target.h / 2, target.w, target.h)
-      ctx.fillStyle = '#c2410c'
-      ctx.font = '18px system-ui'
-      ctx.fillText('P', target.x - 6, target.y + 8)
+      ctx.fillStyle = '#facc15'
+      ctx.font = 'bold 18px system-ui'
+      ctx.fillText('Ziel', target.x - 16, target.y + 7)
 
       carRef.current.draw(ctx)
 
@@ -337,7 +485,31 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
       lastTimeRef.current = time
 
       const car = carRef.current
-      car.update(dt)
+
+      if (embedded && tutorialMode && tutorialPlaybackRef.current) {
+        const { startedAt, step } = tutorialPlaybackRef.current
+        const duration = Math.max(step.duration, 1)
+        const progress = Math.min(1, (time - startedAt) / duration)
+        const pose = interpolatePose(step.startPose, step.endPose, progress)
+        const prevPose = interpolatePose(step.startPose, step.endPose, Math.max(0, progress - Math.min(0.02, progress)))
+
+        setCarPose(car, pose)
+        const distance = Math.hypot(pose.x - prevPose.x, pose.y - prevPose.y)
+        const signedVelocity = pose.x >= prevPose.x ? (distance / Math.max(dt, 1 / 60)) : -(distance / Math.max(dt, 1 / 60))
+        setVelocity(Number.isFinite(signedVelocity) ? signedVelocity : 0)
+        setStatus(Math.abs(signedVelocity) < 1 ? 'Halt' : signedVelocity > 0 ? 'Vorwärts' : 'Rückwärts')
+
+        if (progress >= 1) {
+          setCarPose(car, step.endPose)
+          setVelocity(0)
+          setStatus('Halt')
+          tutorialPlaybackRef.current = null
+          setTutorialActive(false)
+        }
+      } else {
+        car.update(dt)
+      }
+
       car.x = Math.max(40, Math.min(canvas.width - 40, car.x))
       car.y = Math.max(50, Math.min(canvas.height - 50, car.y))
 
@@ -347,10 +519,10 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
       const angleDiff = Math.min(Math.abs(carAngleNorm - goalAngle), 2 * Math.PI - Math.abs(carAngleNorm - goalAngle))
 
       const phaseDone = [
-        () => car.x > 240 && car.x < 260 && Math.abs(car.y - 220) < 24,
-        () => dist < 180 && Math.abs(car.angle) < 0.8,
-        () => dist < 120 && Math.abs(car.angle) < 0.6,
-        () => dist < 40 && angleDiff < 0.3 && Math.abs(car.speed) < 15
+        () => car.x > 280 && car.x < 460 && Math.abs(car.y - 230) < 18,
+        () => car.x > 560 && car.x < 690 && Math.abs(car.y - 230) < 18,
+        () => dist < 150 && Math.abs(car.angle) < 0.9,
+        () => dist < 55 && angleDiff < 0.3 && Math.abs(car.speed) < 12
       ][parkPhase]
 
       if (phaseDone()) {
@@ -397,11 +569,9 @@ const Simulator: React.FC<SimulatorProps> = ({ tutorialMode, tutorialStep, embed
 
   const reset = () => {
     const car = carRef.current
-    car.x = 180
-    car.y = 220
-    car.angle = 0
-    car.speed = 0
-    car.steeringAngle = 0
+    const pose = tutorialMode ? tutorialPlans[tutorialMode][0]?.startPose ?? sceneLayout.startPose : sceneLayout.startPose
+    setCarPose(car, pose)
+    tutorialPlaybackRef.current = null
     setThrottle(0)
     setSteerAngle(0)
     setVelocity(0)
