@@ -29,3 +29,17 @@ export type TutorialDefinition = {
   startPose: CarPose
   steps: TutorialStep[]
 }
+
+export type StepSnapshot = {
+  stepIndex: number
+  startPose: CarPose
+  endPose: CarPose
+}
+
+export type ParkingSuccessMetrics = {
+  success: boolean
+  centerDistanceToTarget: number
+  angleError: number
+  speed: number
+  isInsideTargetBounds: boolean
+}
